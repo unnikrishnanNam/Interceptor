@@ -11,7 +11,6 @@ import java.util.Objects;
 @Getter
 @Setter
 @ToString(exclude = "passwordHash")
-@RequiredArgsConstructor
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
