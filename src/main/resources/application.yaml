@@ -4,7 +4,7 @@ spring:
 
   # Interceptor's own database (for users, audit, blocked queries)
   datasource:
-    url: "jdbc: postgresql://localhost:5434/interceptor"
+    url: "jdbc:postgresql://localhost:5434/interceptor"
     username: interceptor
     password: interceptor123
     driver-class-name: org.postgresql.Driver
