@@ -3,7 +3,6 @@ target/
 .mvn/
 !**/src/main/**/target/
 !**/src/test/**/target/
-target/
 docs/
 .postman/
 postman/
