@@ -46,7 +46,7 @@ public class SecurityConfig {
 
                     // Protected endpoints (both ADMIN and PEER)
                     .requestMatchers("/api/blocked/**", "/api/approve", "/api/reject",
-                            "/api/vote", "/events")
+                            "/api/vote", "/events", "/error")
                         .hasAnyRole("ADMIN", "PEER")
 
                     .anyRequest().authenticated()
