@@ -3,6 +3,8 @@ package com.proxy.interceptor.proxy;
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import javax.swing.text.html.Option;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
@@ -56,34 +58,95 @@ public class WireProtocolHandler {
         }
 
         buf.markReaderIndex();
-        byte messageType = buf.readByte();
+        try {
+            byte messageType = buf.readByte();
 
-        if (messageType != 'P') {
+            if (messageType != 'P') {
+                buf.resetReaderIndex();
+                return Optional.empty();
+            }
+
+            int length = buf.readInt();
+            if (length < 4) {
+                buf.resetReaderIndex();
+                return Optional.empty();
+            }
+
+            // Remaining bytes after reading 4 byte length
+            int remainingBytes = length - 4;
+            if (buf.readableBytes() < remainingBytes) {
+                buf.resetReaderIndex();
+                return Optional.empty();
+            }
+
+            // Prevent reading into next message
+            int messageEndIndex = buf.readerIndex() + remainingBytes;
+
+            // Skip statement name (C-string)
+            if (!skipCString(buf, messageEndIndex)) {
+                buf.resetReaderIndex();
+                return Optional.empty();
+            }
+
+            // Read query (C-string) as UTF-8 bytes
+            Optional<String> sqlOpt = readCStringUtf8(buf, messageEndIndex);
+            if (sqlOpt.isEmpty()) {
+                buf.resetReaderIndex();
+                return Optional.empty();
+            }
+
+            String sql = sqlOpt.get();
+
+            buf.resetReaderIndex();
+
+            log.debug("Parsed Extended Query: {}", sql.substring(0, Math.min(100, sql.length())));
+
+            return Optional.of(sql);
+        } catch (IndexOutOfBoundsException e) {
             buf.resetReaderIndex();
             return Optional.empty();
         }
+    }
 
-        int length = buf.readInt();
-        if (length < 4) {
-            buf.resetReaderIndex();
+    /*
+    * Skips a null-terminated. C-string within (currentReaderIndex, messageEndIndex).
+    * Returns true if we found a null terminator, false otherwise.
+     */
+    private boolean skipCString(ByteBuf buf, int messageEndIndex) {
+        while (buf.readerIndex() < messageEndIndex) {
+            if (buf.readByte() == 0) {
+                return true; // null-terminator
+            }
+        }
+        return false; // null-terminator not found
+    }
+
+    /*
+    * Reads a null-terminated C-string as UTF-8 within (currentReaderIndex, messageEndIndex).
+    * Returns Optional.empty() if terminator not found.
+     */
+    private Optional<String> readCStringUtf8(ByteBuf buf, int messageEndIndex) {
+        int start = buf.readerIndex();
+
+        int end = start;
+        while (end < messageEndIndex) {
+            if (buf.getByte(end) == 0) {
+                break;
+            }
+            end++;
+        }
+
+        if (end >= messageEndIndex) {
             return Optional.empty();
         }
 
-        // Skip statement name (C-string)
-        while (buf.readableBytes() > 0 && buf.readByte() != 0) {}
+        int len = end - start;
 
-        // Read query (C-string)
-        StringBuilder sb = new StringBuilder();
-        while (buf.readableBytes() > 0) {
-            byte b = buf.readByte();
-            if (b == 0) break;
-            sb.append((char) b);
-        }
+        byte[] bytes = new byte[len];
+        buf.readBytes(bytes);
 
-        buf.resetReaderIndex();
-        String sql = sb.toString();
-        log.debug("Parsed Extended Query: {}", sql.substring(0, Math.min(100, sql.length())));
+        buf.readByte();
 
-        return Optional.of(sql);
+        return Optional.of(new String(bytes, StandardCharsets.UTF_8));
     }
 }
