@@ -12,4 +12,4 @@ public record PendingQuery(
         Consumer<String> rejectCallback,
         Set<String> approvals,
         Set<String> rejections
-    ) {}
+) {}
