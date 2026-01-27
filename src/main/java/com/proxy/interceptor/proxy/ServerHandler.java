@@ -1,9 +1,10 @@
 package com.proxy.interceptor.proxy;
 
+import com.proxy.interceptor.service.MetricsService;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -11,10 +12,14 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
 
     private final String connId;
     private final Channel clientChannel;
+    private final MetricsService metricsService;
 
-    public ServerHandler(String connId, Channel clientChannel) {
+    public ServerHandler(String connId,
+                         Channel clientChannel,
+                         MetricsService metricsService) {
         this.connId = connId;
         this.clientChannel = clientChannel;
+        this.metricsService = metricsService;
     }
 
     @Override
@@ -24,19 +29,22 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
             clientChannel.writeAndFlush(msg);
         } else {
             // If client is dead, release message to avoid leaks
-            ReferenceCountUtil.release(msg);
+            ((ByteBuf) msg).release();
         }
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         log.debug("{}: Server connection closed", connId);
-        clientChannel.close();
+        if (clientChannel.isActive()) {
+            clientChannel.close();
+        }
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         log.error("{}: Server error: {}", connId, cause.getMessage());
+        metricsService.trackError();
         ctx.close();
     }
 }
