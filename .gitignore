@@ -8,7 +8,7 @@ docs/
 postman/
 src/main/resources/creds.env
 src/main/resources/application-prod.yaml
-!scripts/cert_gen.sh
+certs/
 
 ### STS ###
 .apt_generated
