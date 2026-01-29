@@ -6,6 +6,8 @@ target/
 docs/
 .postman/
 postman/
+src/main/resources/creds.env
+src/main/resources/application-prod.yaml
 
 ### STS ###
 .apt_generated
