@@ -47,7 +47,7 @@ public class AuthService {
         return new LoginResult(true, token, user, null);
     }
 
-    public void createUser(String username, String password, Role role) {
+    public User createUser(String username, String password, Role role) {
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Username already exists");
         }
@@ -58,7 +58,7 @@ public class AuthService {
                 .role(role)
                 .build();
 
-        userRepository.save(user);
+        return userRepository.save(user);
     }
 
     public void createAdminIfNotExists(String username, String password) {
