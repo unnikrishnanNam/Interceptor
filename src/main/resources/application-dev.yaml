@@ -44,21 +44,10 @@ proxy:
   block-by-default: true
 
   # Critical SQL keywords that require approval
-  critical-keywords:
-    - DROP
-    - ALTER
-    - TRUNCATE
-    - DELETE
-    - GRANT
-    - REVOKE
-    - CREATE EXTENSION
-    - UPDATE
-    - INSERT
+  critical-keywords: DROP,ALTER,TRUNCATE,DELETE,GRANT,REVOKE,UPDATE,INSERT
 
   # Allowed keywords that bypass blocking
-  allowed-keywords:
-    - SELECT
-    - CREATE TABLE
+  allowed-keywords: SELECT,CREATE
 
 # Admin dashboard
 server:
