@@ -162,28 +162,61 @@ public class BlockedQueryService {
             return Map.of("success", false, "error", "Query does not require peer approval");
         }
 
-        // Record vote
-        if ("approve".equalsIgnoreCase(vote)) {
-            pending.approvals().add(username);
-            pending.rejections().remove(username);
-        } else if ("reject".equalsIgnoreCase(vote)) {
-            pending.rejections().add(username);
-            pending.approvals().remove(username);
-        } else {
+        Vote voteEnum;
+        try {
+            voteEnum = Vote.valueOf(vote.toUpperCase());
+        } catch (IllegalArgumentException e) {
             return Map.of("success", false, "error", "Invalid vote type");
         }
 
-        // Update counts in database
+        // Update In-Memory State (PendingQuery)
+        if (voteEnum == Vote.APPROVE) {
+            pending.approvals().add(username);
+            pending.rejections().remove(username);
+        } else {
+            pending.rejections().add(username);
+            pending.approvals().remove(username);
+        }
+
+        // Check if the user has already voted
+        QueryApproval existingApproval = query.getApprovals().stream()
+                .filter(a -> a.getUsername().equals(username))
+                .findFirst()
+                .orElse(null);
+
+        if (existingApproval != null) {
+            // User already voted
+            if (existingApproval.getVote() == voteEnum) {
+                log.info("User {} already voted {} on query #{}. Ignoring duplicate.", username, vote, id);
+                // Return success without DB write to save resources
+                return Map.of(
+                        "success", true,
+                        "autoResolved", false,
+                        "approvalCount", pending.approvals().size(),
+                        "rejectionCount", pending.rejections().size()
+                );
+            } else {
+                // User changed their vote
+                log.info("User {} changed vote from {} to {} on query #{}",
+                        username, existingApproval.getVote(), voteEnum, id);
+                existingApproval.setVote(voteEnum);
+                existingApproval.setVotedAt(Instant.now());
+            }
+        } else {
+            // New vote
+            QueryApproval approval = QueryApproval.builder()
+                .blockedQuery(query)
+                .username(username)
+                .vote(voteEnum)
+                .build();
+            query.getApprovals().add(approval);
+        }
+
+        // Update counts
         query.setApprovalCount(pending.approvals().size());
         query.setRejectionCount(pending.rejections().size());
 
-        // Save individual vote
-        QueryApproval approval = QueryApproval.builder()
-                .blockedQuery(query)
-                .username(username)
-                .vote(Vote.valueOf(vote.toUpperCase()))
-                .build();
-        query.getApprovals().add(approval);
+        // Save changes
         blockedQueryRepository.save(query);
 
         // Check threshold
