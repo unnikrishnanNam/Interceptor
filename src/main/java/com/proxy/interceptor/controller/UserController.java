@@ -1,11 +1,13 @@
 package com.proxy.interceptor.controller;
 
 import com.proxy.interceptor.dto.CreateUserRequest;
+import com.proxy.interceptor.dto.UserResponse;
 import com.proxy.interceptor.model.Role;
 import com.proxy.interceptor.model.User;
 import com.proxy.interceptor.repository.UserRepository;
 import com.proxy.interceptor.service.AuditService;
 import com.proxy.interceptor.service.AuthService;
+import com.proxy.interceptor.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,15 +24,14 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
+    private final UserService userService;
     private final UserRepository userRepository;
     private final AuthService authService;
     private final AuditService auditService;
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userRepository.findAll();
-        users.forEach(u -> u.setPasswordHash(null));
-        return ResponseEntity.ok(users);
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @PostMapping
