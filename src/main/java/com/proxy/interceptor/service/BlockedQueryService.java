@@ -183,8 +183,7 @@ public class BlockedQueryService {
                 return Map.of(
                         "success", false,
                         "duplicate", true,
-                        "error", "You have already voted on this query",
-                        "message", "Users can only vote once per query"
+                        "error", "You have already voted on this query"
                 );
             } else {
                 // User changed their vote
