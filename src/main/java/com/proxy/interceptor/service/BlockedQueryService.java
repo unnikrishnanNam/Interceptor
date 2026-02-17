@@ -153,29 +153,20 @@ public class BlockedQueryService {
         PendingQuery pending = pendingQueries.get(id);
         if (pending == null) {
             log.warn("Vote failed: query #{} not found in pending", id);
-            return Map.of("success", false, "error", "Query not found");
+            return Map.of("success", false, "duplicate", false, "error", "Query not found");
         }
 
         BlockedQuery query = blockedQueryRepository.findById(id).orElse(null);
         if (query == null || !query.isRequiresPeerApproval()) {
             log.warn("Vote failed: query #{} does not require peer approval", id);
-            return Map.of("success", false, "error", "Query does not require peer approval");
+            return Map.of("success", false, "duplicate", false, "error", "Query does not require peer approval");
         }
 
         Vote voteEnum;
         try {
             voteEnum = Vote.valueOf(vote.toUpperCase());
         } catch (IllegalArgumentException e) {
-            return Map.of("success", false, "error", "Invalid vote type");
-        }
-
-        // Update In-Memory State (PendingQuery)
-        if (voteEnum == Vote.APPROVE) {
-            pending.approvals().add(username);
-            pending.rejections().remove(username);
-        } else {
-            pending.rejections().add(username);
-            pending.approvals().remove(username);
+            return Map.of("success", false, "duplicate", false, "error", "Invalid vote type");
         }
 
         // Check if the user has already voted
@@ -190,10 +181,10 @@ public class BlockedQueryService {
                 log.info("User {} already voted {} on query #{}. Ignoring duplicate.", username, vote, id);
                 // Return success without DB write to save resources
                 return Map.of(
-                        "success", true,
-                        "autoResolved", false,
-                        "approvalCount", pending.approvals().size(),
-                        "rejectionCount", pending.rejections().size()
+                        "success", false,
+                        "duplicate", true,
+                        "error", "You have already voted on this query",
+                        "message", "Users can only vote once per query"
                 );
             } else {
                 // User changed their vote
@@ -212,6 +203,15 @@ public class BlockedQueryService {
             query.getApprovals().add(approval);
         }
 
+        // Update In-Memory State (PendingQuery)
+        if (voteEnum == Vote.APPROVE) {
+            pending.approvals().add(username);
+            pending.rejections().remove(username);
+        } else {
+            pending.rejections().add(username);
+            pending.approvals().remove(username);
+        }
+
         // Update counts
         query.setApprovalCount(pending.approvals().size());
         query.setRejectionCount(pending.rejections().size());
@@ -222,12 +222,12 @@ public class BlockedQueryService {
         // Check threshold
         if (pending.approvals().size() >= minVotes) {
             approveQuery(id, "Peer Approval System");
-            return Map.of("success", true, "autoResolved", true, "action", "approved");
+            return Map.of("success", true, "duplicate", false, "autoResolved", true, "action", "approved");
         }
 
         if (pending.rejections().size() >= minVotes) {
             rejectQuery(id, "Peer Approval System");
-            return Map.of("success", true, "autoResolved", true, "action", "rejected");
+            return Map.of("success", true, "duplicate", false, "autoResolved", true, "action", "rejected");
         }
 
         // Publish vote notification
@@ -235,6 +235,7 @@ public class BlockedQueryService {
 
         return Map.of(
                 "success", true,
+                "duplicate", false,
                 "autoResolved", false,
                 "approvalCount", pending.approvals().size(),
                 "rejectionCount", pending.rejections().size()
