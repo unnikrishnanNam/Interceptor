@@ -70,7 +70,7 @@ public class QueryController {
                     "Query #" + request.id() + "approved", clientIp);
         }
 
-        return ResponseEntity.ok(Map.of("ok", ok));
+        return ResponseEntity.ok(Map.of("success", ok));
     }
 
     @PostMapping("/reject")
@@ -100,7 +100,7 @@ public class QueryController {
                     "Query #" + request.id() + "rejected", clientIp);
         }
 
-        return ResponseEntity.ok(Map.of("ok", ok));
+        return ResponseEntity.ok(Map.of("success", ok));
     }
 
     @PostMapping("/vote")
